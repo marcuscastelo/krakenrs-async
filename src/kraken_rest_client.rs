@@ -5,8 +5,8 @@
 use displaydoc::Display;
 use hmac::{Hmac, Mac, NewMac};
 use reqwest::{
-    blocking::Response,
     header::{HeaderMap, HeaderValue, InvalidHeaderValue},
+    Response,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256, Sha512};
@@ -66,7 +66,7 @@ impl KrakenCredentials {
 /// A low-level https connection to kraken that can execute public or private methods.
 pub struct KrakenRestClient {
     /// Http client
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
     /// Our configuration
     config: KrakenRestConfig,
     /// Base url to contact kraken at
@@ -83,9 +83,9 @@ impl TryFrom<KrakenRestConfig> for KrakenRestClient {
     fn try_from(config: KrakenRestConfig) -> Result<Self> {
         let base_url = Url::from_str("https://api.kraken.com/")?;
         let version = 0;
-        let client = reqwest::blocking::ClientBuilder::new()
+        let client = reqwest::ClientBuilder::new()
             .user_agent(format!("krakenrs/{}", KRAKEN_RS_VERSION.unwrap_or("unknown")))
-            .timeout(Some(config.timeout))
+            .timeout(config.timeout)
             .build()?;
         Ok(Self {
             base_url,
@@ -103,17 +103,17 @@ impl KrakenRestClient {
     }
 
     /// Execute a public API, given method, and object matching the expected schema, and returning expected schema or an error.
-    pub fn query_public<D: Serialize, R: DeserializeOwned>(&self, method: &str, query_data: D) -> Result<R> {
+    pub async fn query_public<D: Serialize, R: DeserializeOwned>(&self, method: &str, query_data: D) -> Result<R> {
         let url_path = format!("/{}/public/{}", self.version, method);
 
         let post_data = serde_qs::to_string(&query_data)?;
         //log::debug!("post_data = {}", post_data);
 
-        self.query(&url_path, HeaderMap::new(), post_data)
+        self.query(&url_path, HeaderMap::new(), post_data).await
     }
 
     /// Execute a private API, given method, and object matching the expected schema, and returning expected schema or an error.
-    pub fn query_private<D: Serialize, R: DeserializeOwned>(&self, method: &str, query_data: D) -> Result<R> {
+    pub async fn query_private<D: Serialize, R: DeserializeOwned>(&self, method: &str, query_data: D) -> Result<R> {
         if self.config.creds.key.is_empty() || self.config.creds.secret.is_empty() {
             return Err(Error::MissingCredentials);
         }
@@ -127,21 +127,21 @@ impl KrakenRestClient {
         headers.insert("API-Key", HeaderValue::from_str(&self.config.creds.key)?);
         headers.insert("API-Sign", HeaderValue::from_str(&sig)?);
 
-        self.query(&url_path, headers, post_data)
+        self.query(&url_path, headers, post_data).await
     }
 
     /// Send a query (public or private) to kraken API, and interpret response as JSON
-    fn query<R: DeserializeOwned>(&self, url_path: &str, headers: HeaderMap, post_data: String) -> Result<R> {
+    async fn query<R: DeserializeOwned>(&self, url_path: &str, headers: HeaderMap, post_data: String) -> Result<R> {
         let url = self.base_url.join(url_path)?;
 
         //log::trace!("POST {}\n{}", url_path, post_data);
 
-        let response = self.client.post(url).headers(headers).body(post_data).send()?;
+        let response = self.client.post(url).headers(headers).body(post_data).send().await?;
         if !(response.status() == 200 || response.status() == 201 || response.status() == 202) {
             return Err(Error::BadStatus(response));
         }
 
-        let text = response.text()?;
+        let text = response.text().await?;
 
         let result: R = serde_json::from_str(&text).map_err(|err| Error::Json(err, text.clone()))?;
         Ok(result)

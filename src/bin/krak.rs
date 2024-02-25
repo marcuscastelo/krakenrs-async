@@ -82,7 +82,8 @@ fn log_value<T: Serialize + Debug>(val: &T) {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // Default to INFO log level for everything if we do not have an explicit
     // setting.
     Builder::from_env(Env::default().default_filter_or("info"))
@@ -125,52 +126,52 @@ fn main() {
 
     match config.command {
         Command::Time => {
-            let result = api.time().expect("api call failed");
+            let result = api.time().await.expect("api call failed");
             log_value(&result);
         }
         Command::SystemStatus => {
-            let result = api.system_status().expect("api call failed");
+            let result = api.system_status().await.expect("api call failed");
             log_value(&result);
         }
         Command::Assets => {
-            let result = api.assets().expect("api call failed");
+            let result = api.assets().await.expect("api call failed");
             let sorted_result = result.into_iter().collect::<BTreeMap<_, _>>();
             log_value(&sorted_result);
         }
         Command::AssetPairs { pairs } => {
-            let result = api.asset_pairs(pairs).expect("api call failed");
+            let result = api.asset_pairs(pairs).await.expect("api call failed");
             let sorted_result = result.into_iter().collect::<BTreeMap<_, _>>();
             log_value(&sorted_result);
         }
         Command::Ticker { pairs } => {
-            let result = api.ticker(pairs).expect("api call failed");
+            let result = api.ticker(pairs).await.expect("api call failed");
             let sorted_result = result.into_iter().collect::<BTreeMap<_, _>>();
             log_value(&sorted_result);
         }
         Command::GetBalance => {
-            let result = api.get_account_balance().expect("api call failed");
+            let result = api.get_account_balance().await.expect("api call failed");
             let sorted_result = result.into_iter().collect::<BTreeMap<_, _>>();
             log_value(&sorted_result);
         }
         Command::GetWebSocketsToken => {
-            let result = api.get_websockets_token().expect("api call failed");
+            let result = api.get_websockets_token().await.expect("api call failed");
             log_value(&result);
         }
         Command::GetOpenOrders => {
-            let result = api.get_open_orders(None).expect("api call failed");
+            let result = api.get_open_orders(None).await.expect("api call failed");
             let sorted_result = result.open.into_iter().collect::<BTreeMap<_, _>>();
             log_value(&sorted_result);
         }
         Command::CancelOrder { id } => {
-            let result = api.cancel_order(id).expect("api call failed");
+            let result = api.cancel_order(id).await.expect("api call failed");
             log_value(&result);
         }
         Command::CancelAllOrders => {
-            let result = api.cancel_all_orders().expect("api call failed");
+            let result = api.cancel_all_orders().await.expect("api call failed");
             log_value(&result);
         }
         Command::CancelAllOrdersAfter { timeout } => {
-            let result = api.cancel_all_orders_after(timeout).expect("api call failed");
+            let result = api.cancel_all_orders_after(timeout).await.expect("api call failed");
             log_value(&result);
         }
         Command::MarketBuy { volume, pair } => {
@@ -185,6 +186,7 @@ fn main() {
                     None,
                     config.validate,
                 )
+                .await
                 .expect("api call failed");
             log_value(&result);
         }
@@ -200,6 +202,7 @@ fn main() {
                     None,
                     config.validate,
                 )
+                .await
                 .expect("api call failed");
             log_value(&result);
         }
@@ -218,6 +221,7 @@ fn main() {
                     None,
                     config.validate,
                 )
+                .await
                 .expect("api call failed");
             log_value(&result);
         }
@@ -236,6 +240,7 @@ fn main() {
                     None,
                     config.validate,
                 )
+                .await
                 .expect("api call failed");
             log_value(&result);
         }

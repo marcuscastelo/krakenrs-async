@@ -69,7 +69,7 @@ enum Command {
 static PROCESS_TERMINATING: AtomicBool = AtomicBool::new(false);
 
 // Helper: Get a private websockets connection
-fn get_private_websockets_api(creds: &Option<PathBuf>) -> KrakenWsAPI {
+async fn get_private_websockets_api(creds: &Option<PathBuf>) -> KrakenWsAPI {
     // First get a websockets token
     let mut kc_config = KrakenRestConfig::default();
 
@@ -82,6 +82,7 @@ fn get_private_websockets_api(creds: &Option<PathBuf>) -> KrakenWsAPI {
     let api = KrakenRestAPI::try_from(kc_config).expect("could not create kraken api");
     let token = api
         .get_websockets_token()
+        .await
         .expect("could not get websockets token")
         .token;
 
@@ -95,7 +96,8 @@ fn get_private_websockets_api(creds: &Option<PathBuf>) -> KrakenWsAPI {
     KrakenWsAPI::new(ws_config).expect("could not connect to websockets api")
 }
 
-pub fn main() {
+#[tokio::main]
+pub async fn main() {
     // Default to INFO log level for everything if we do not have an explicit
     // setting.
     Builder::from_env(Env::default().default_filter_or("info"))
@@ -166,7 +168,7 @@ pub fn main() {
             }
         }
         Command::OpenOrders {} => {
-            let api = get_private_websockets_api(&config.creds);
+            let api = get_private_websockets_api(&config.creds).await;
 
             let mut prev = api.get_open_orders();
 
@@ -192,7 +194,7 @@ pub fn main() {
             }
         }
         Command::MarketBuy { volume, pair } => {
-            let api = get_private_websockets_api(&config.creds);
+            let api = get_private_websockets_api(&config.creds).await;
 
             let result = api
                 .add_market_order(
@@ -212,7 +214,7 @@ pub fn main() {
             }
         }
         Command::MarketSell { volume, pair } => {
-            let api = get_private_websockets_api(&config.creds);
+            let api = get_private_websockets_api(&config.creds).await;
 
             let result = api
                 .add_market_order(
@@ -232,7 +234,7 @@ pub fn main() {
             }
         }
         Command::LimitBuy { volume, pair, price } => {
-            let api = get_private_websockets_api(&config.creds);
+            let api = get_private_websockets_api(&config.creds).await;
 
             let mut oflags = BTreeSet::new();
             oflags.insert(OrderFlag::Post);
@@ -255,7 +257,7 @@ pub fn main() {
             }
         }
         Command::LimitSell { volume, pair, price } => {
-            let api = get_private_websockets_api(&config.creds);
+            let api = get_private_websockets_api(&config.creds).await;
 
             let mut oflags = BTreeSet::new();
             oflags.insert(OrderFlag::Post);
@@ -278,7 +280,7 @@ pub fn main() {
             }
         }
         Command::CancelOrder { id } => {
-            let api = get_private_websockets_api(&config.creds);
+            let api = get_private_websockets_api(&config.creds).await;
 
             let result = api.cancel_order(id).expect("api call failed");
             match block_on(result).expect("Failed to submit request") {
@@ -287,7 +289,7 @@ pub fn main() {
             }
         }
         Command::CancelAllOrders {} => {
-            let api = get_private_websockets_api(&config.creds);
+            let api = get_private_websockets_api(&config.creds).await;
 
             let result = api.cancel_all_orders().expect("api call failed");
             match block_on(result).expect("Failed to submit request") {
